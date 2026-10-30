@@ -1,0 +1,11 @@
+# Windows is the primary target; keep source files CRLF-friendly
+* text=auto
+*.cs text
+*.csproj text
+*.sln text
+*.xaml text
+*.md text
+dist binary
+*.exe binary
+*.dll binary
+*.png binary

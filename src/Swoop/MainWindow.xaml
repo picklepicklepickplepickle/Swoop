@@ -1,0 +1,111 @@
+﻿<Window x:Class="Swoop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Swoop 1.0" Height="560" Width="720" MinWidth="560" MinHeight="420"
+        WindowStartupLocation="CenterScreen" Background="#101014"
+        AllowDrop="True" DragEnter="Window_DragEnter" Drop="Window_Drop">
+    <Window.Resources>
+        <Style TargetType="ComboBox">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="1.2*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Drop zone -->
+        <Border Grid.Row="0" Name="DropZone" Background="#18181E" BorderBrush="#3A3A46" BorderThickness="2"
+                CornerRadius="10" AllowDrop="True" DragEnter="Window_DragEnter" DragLeave="DropZone_DragLeave"
+                DragOver="Window_DragEnter" Drop="Window_Drop" Margin="0,0,0,12">
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="⬇  Drop a link here" FontSize="20" FontWeight="SemiBold"
+                           Foreground="#E8E8F0" HorizontalAlignment="Center"/>
+                <TextBlock Text="YouTube · YouTube Music · SoundCloud · playlists · multiple links at once"
+                           FontSize="12" Foreground="#8A8A9A" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Paste row -->
+        <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox Grid.Column="0" Name="LinkBox" Height="30" VerticalContentAlignment="Center"
+                     Background="#18181E" Foreground="#E8E8F0" BorderBrush="#3A3A46"
+                     KeyDown="LinkBox_KeyDown" ToolTip="Paste a link here — Enter or the ➕ button enqueues it. Multiple links = one per line."/>
+            <Button Grid.Column="1" Content="➕ Add" Name="AddBtn" Click="Add_Click" Margin="10,0,0,0" Width="80" Height="30"/>
+        </Grid>
+
+        <!-- Format + resolution row -->
+        <Grid Grid.Row="2" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                <ColumnDefinition Name="ResLabelCol" Width="Auto"/><ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Format" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#C8C8D4"/>
+            <ComboBox Grid.Column="1" Name="FormatCombo" SelectionChanged="Format_SelectionChanged" SelectedIndex="0"/>
+            <TextBlock Grid.Column="2" Name="ResLabel" Text="Resolution" VerticalAlignment="Center" Margin="18,0,10,0" Foreground="#C8C8D4"/>
+            <ComboBox Grid.Column="3" Name="ResCombo" SelectedIndex="0"/>
+        </Grid>
+
+        <!-- Folder row -->
+        <Grid Grid.Row="3" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Save to" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#C8C8D4"/>
+            <TextBox Grid.Column="1" Name="FolderBox" IsReadOnly="True" Height="28" VerticalContentAlignment="Center" Background="#18181E" Foreground="#E8E8F0" BorderBrush="#3A3A46"/>
+            <Button Grid.Column="2" Content="Browse…" Name="BrowseBtn" Click="Browse_Click" Margin="10,0,0,0" Width="90" Height="28"/>
+        </Grid>
+
+        <!-- Queue -->
+        <Border Grid.Row="4" Background="#14141A" CornerRadius="8" BorderBrush="#2A2A34" BorderThickness="1" Padding="6">
+            <ListView Name="QueueList" Background="Transparent" BorderThickness="0"
+                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="2,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/><ColumnDefinition Width="90"/><ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Ellipse Grid.Column="0" Width="9" Height="9" Fill="{Binding Dot}" Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="1" Text="{Binding State}" Foreground="#9A9AB0" Width="78" Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="2" Text="{Binding Label}" Foreground="#E8E8F0" TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding Tooltip}"/>
+                            <ProgressBar Grid.Column="3" Height="10" Minimum="0" Maximum="100" Value="{Binding Percent}">
+                                <ProgressBar.Resources>
+                                    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#4CAF50"/>
+                                    <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#24242E"/>
+                                </ProgressBar.Resources>
+                            </ProgressBar>
+                            <Button Grid.Column="4" Content="✕" Background="Transparent" Foreground="#F06060" BorderThickness="0"
+                                    Margin="8,0,0,0" Visibility="{Binding CancelVisib}" Click="CancelRow_Click" Tag="{Binding}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </Border>
+
+        <!-- Status bar -->
+        <Grid Grid.Row="5" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Name="StatusText" Text="Ready." Foreground="#8A8A9A" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                       ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+            <Button Grid.Column="1" Content="Cancel current" Name="CancelAllBtn" Click="CancelAll_Click" Width="110" Height="28" Margin="0,0,8,0"/>
+            <Button Grid.Column="2" Content="Clear finished" Name="ClearBtn" Click="Clear_Click" Width="110" Height="28"/>
+        </Grid>
+    </Grid>
+</Window>
+
+
+

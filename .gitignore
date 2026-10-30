@@ -1,0 +1,12 @@
+## Ignore Visual Studio temporary files
+bin/
+obj/
+.vs/
+*.user
+*.suo
+dist/
+[Bb]uild[Ll]og.*
+nupkg/
+.fake/
+.maui/
+.dotnet/
