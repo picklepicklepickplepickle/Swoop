@@ -83,7 +83,7 @@ big video at a time is kinder to RAM).
 Needs the .NET 8 SDK and Visual Studio 2022 (Community is fine):
 
 ```powershell
-git clone https://github.com/boblo/Swoop.git
+git clone https://github.com/picklepicklepickplepickle/Swoop.git
 cd Swoop
 dotnet build Swoop.sln
 dotnet test tests/Swoop.Core.Tests/Swoop.Core.Tests.csproj
@@ -129,4 +129,5 @@ falls back to the newest file in the output folder.
 ## License
 
 MIT â€” see [LICENSE](LICENSE). Do whatever, attribution appreciated.
+
 
