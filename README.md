@@ -9,6 +9,13 @@ your disk. Drag links onto it (or paste them), pick a format and a
 resolution, done. It doesn't re-encode anything â€” it talks to yt-dlp, which
 does the real work.
 
+## What's new in 1.1
+
+- Redesigned dark interface with eased transitions and smoother download progress.
+- Link preview with thumbnail, title, creator, and duration.
+- Settings for download location, dark color themes, and a custom background image.
+- Improved handling of download errors and progress updates.
+
 I built it because every downloader app I tried was either wrapped in an
 Electron shell, stuffed with ads, or both. Swoop is one WPF window and
 a 0.2 MB exe.
@@ -23,6 +30,9 @@ a 0.2 MB exe.
 - Resolutions from `Best available` down to `360p`. Audio formats ignore it.
 - Files land in your Downloads folder by default; there's a Browse button
   if you want them somewhere else.
+- Choose a persistent download folder in Settings, switch between dark
+  themes, or use your own background image.
+- Adding a link shows its thumbnail and media details in the preview panel.
 - Queue at the bottom shows progress per item. Cancel any item mid-flight.
 
 Video formats download the best video + audio streams and merge them with
