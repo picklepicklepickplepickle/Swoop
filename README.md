@@ -2,8 +2,6 @@
 
 [![build](https://github.com/picklepicklepickplepickle/Swoop/actions/workflows/build.yml/badge.svg)](https://github.com/picklepicklepickplepickle/Swoop/actions/workflows/build.yml)
 
-![Swoop](docs/swoop.png)
-
 A tiny Windows app for saving YouTube videos and songs as actual files on
 your disk. Drag links onto it (or paste them), pick a format and a
 resolution, done. It doesn't re-encode anything â€” it talks to yt-dlp, which
