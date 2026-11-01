@@ -4,6 +4,8 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Media.Animation;
 using Swoop.Core;
 using Microsoft.Win32;
 
@@ -32,7 +34,9 @@ public partial class MainWindow : Window
     private static readonly string[] AudioFormats = ["mp3", "m4a", "aac", "wav", "flac", "ogg"];
 
     private readonly ObservableCollection<QueueItemVm> _queue = [];
+    private readonly AppSettings _settings;
     private CancellationTokenSource? _cts;
+    private CancellationTokenSource? _previewCts;
     private bool _engineBusy;
 
     private static readonly (string Token, string Display)[] Formats =
@@ -63,12 +67,15 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        FolderBox.Text = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + @"\Downloads";
+        _settings = AppSettings.Load();
+        FolderBox.Text = _settings.DownloadFolder;
         foreach (var f in Formats) FormatCombo.Items.Add(f.Display);
         foreach (var r in Resolutions) ResCombo.Items.Add(r.Display);
         FormatCombo.SelectedIndex = 0;
         ResCombo.SelectedIndex = 3; // 1080p default
         QueueList.ItemsSource = _queue;
+        ApplyAppearance();
+        Loaded += (_, _) => StartVisualMotion();
         Loaded += async (_, _) => await EnsureToolsAsync();
         // Closing mid-download: cancel, give the engine a bounded moment to
         // kill the process tree, then close — never orphan yt-dlp
@@ -145,17 +152,22 @@ public partial class MainWindow : Window
     private void Window_DragEnter(object sender, DragEventArgs e)
     {
         DropZone.BorderBrush = new SolidColorBrush(Color.FromRgb(0x6C,0xC0,0x6C));
+        AnimateDropScale(1.015);
         e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetDataPresent(DataFormats.StringFormat)
             ? DragDropEffects.Copy : DragDropEffects.None;
         e.Handled = true;
     }
 
     private void DropZone_DragLeave(object sender, DragEventArgs e)
-        => DropZone.BorderBrush = new SolidColorBrush(Color.FromRgb(0x3A,0x3A,0x46));
+    {
+        DropZone.BorderBrush = new SolidColorBrush(Color.FromRgb(0x3A,0x3A,0x46));
+        AnimateDropScale(1.0);
+    }
 
     private void Window_Drop(object sender, DragEventArgs e)
     {
         DropZone.BorderBrush = new SolidColorBrush(Color.FromRgb(0x3A,0x3A,0x46));
+        AnimateDropScale(1.0);
         e.Handled = true;
 
         var lines = new List<string>();
@@ -181,6 +193,7 @@ public partial class MainWindow : Window
 
     private void Enqueue(IReadOnlyList<string> urls)
     {
+        if (urls.Count > 0) _ = LoadPreviewAsync(urls[0]);
         foreach (var u in urls)
         {
             _queue.Add(new QueueItemVm
@@ -193,6 +206,77 @@ public partial class MainWindow : Window
         _ = RunQueueAsync();
     }
 
+    private async Task LoadPreviewAsync(string url)
+    {
+        if (_ytDlpPath is null) return;
+        _previewCts?.Cancel();
+        _previewCts = new CancellationTokenSource();
+        DropPrompt.Visibility = Visibility.Collapsed;
+        PreviewPanel.Visibility = Visibility.Visible;
+        PreviewTitle.Text = "Loading media…";
+        PreviewDetails.Text = url;
+        RevealPreview();
+        try
+        {
+            var preview = await new MediaPreviewService(_ytDlpPath).GetAsync(url, _previewCts.Token);
+            if (preview is null) return;
+            if (!string.IsNullOrWhiteSpace(preview.ThumbnailUrl))
+                PreviewImage.Source = new BitmapImage(new Uri(preview.ThumbnailUrl));
+            PreviewTitle.Text = preview.Title;
+            PreviewDetails.Text = string.Join("  ·  ", new[] { preview.Uploader, preview.Duration }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        }
+        catch (OperationCanceledException) { }
+        catch { PreviewTitle.Text = "Media queued"; }
+    }
+
+    private void StartVisualMotion()
+    {
+        BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(360))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        });
+
+        if (DropPrompt.RenderTransform is ScaleTransform scale)
+        {
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1, 1.012, TimeSpan.FromMilliseconds(1400))
+            {
+                AutoReverse = true,
+                RepeatBehavior = RepeatBehavior.Forever,
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+            });
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(1, 1.012, TimeSpan.FromMilliseconds(1400))
+            {
+                AutoReverse = true,
+                RepeatBehavior = RepeatBehavior.Forever,
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+            });
+        }
+    }
+
+    private void AnimateDropScale(double value)
+    {
+        if (DropZone.RenderTransform is not ScaleTransform scale)
+        {
+            scale = new ScaleTransform(1, 1);
+            DropZone.RenderTransformOrigin = new Point(0.5, 0.5);
+            DropZone.RenderTransform = scale;
+        }
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(value, TimeSpan.FromMilliseconds(180))
+        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(value, TimeSpan.FromMilliseconds(180))
+        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+    }
+
+    private void RevealPreview()
+    {
+        PreviewPanel.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(300))
+        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+        if (PreviewPanel.RenderTransform is TranslateTransform transform)
+        {
+            transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(10, 0, TimeSpan.FromMilliseconds(380))
+            { EasingFunction = new BackEase { Amplitude = 0.15, EasingMode = EasingMode.EaseOut } });
+        }
+    }
     private async Task RunQueueAsync()
     {
         if (_engineBusy) return;
@@ -238,15 +322,23 @@ public partial class MainWindow : Window
                     if (p.Percent is { } pc) next.Percent = Math.Min(pc, 100);
                 });
 
-                var r = await engine.RunAsync(opts, progress, ct);
-
-                _cts.Dispose();
-                _cts = null;
-                next.CancelVisib = Visibility.Collapsed;
-
-                if (r.Cancelled) Finish(next, "Cancelled", Colors.DarkOrange, "Cancelled");
-                else if (r.Success) { next.Percent = 100; Finish(next, "Done", Colors.LimeGreen, r.OutputPath ?? "OK"); }
-                else Finish(next, "Failed", Colors.Red, r.Error);
+                try
+                {
+                    var r = await engine.RunAsync(opts, progress, ct);
+                    if (r.Cancelled) Finish(next, "Cancelled", Colors.DarkOrange, "Cancelled");
+                    else if (r.Success) { next.Percent = 100; Finish(next, "Done", Colors.LimeGreen, r.OutputPath ?? "OK"); }
+                    else Finish(next, "Failed", Colors.Red, r.Error);
+                }
+                catch (Exception ex)
+                {
+                    Finish(next, "Failed", Colors.Red, ex.Message);
+                }
+                finally
+                {
+                    _cts?.Dispose();
+                    _cts = null;
+                    next.CancelVisib = Visibility.Collapsed;
+                }
             }
             StatusText.Text = "Queue empty.";
         }
@@ -278,7 +370,53 @@ public partial class MainWindow : Window
             Title = "Choose download folder",
             InitialDirectory = Directory.Exists(FolderBox.Text) ? FolderBox.Text : null,
         };
-        if (dlg.ShowDialog(this) is true) FolderBox.Text = dlg.FolderName;
+        if (dlg.ShowDialog(this) is true)
+        {
+            FolderBox.Text = dlg.FolderName;
+            _settings.DownloadFolder = dlg.FolderName;
+            _settings.Save();
+        }
+    }
+
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SettingsWindow(_settings) { Owner = this };
+        if (dialog.ShowDialog() is true)
+        {
+            _settings.DownloadFolder = dialog.Settings.DownloadFolder;
+            _settings.Theme = dialog.Settings.Theme;
+            _settings.BackgroundImagePath = dialog.Settings.BackgroundImagePath;
+            FolderBox.Text = _settings.DownloadFolder;
+            ApplyAppearance();
+        }
+    }
+
+    private void ApplyAppearance()
+    {
+        var accent = _settings.Theme switch
+        {
+            "Aurora" => Color.FromRgb(0x5E, 0xD6, 0xB3),
+            "Ember" => Color.FromRgb(0xFF, 0x9A, 0x62),
+            _ => Color.FromRgb(0x6C, 0x9C, 0xFF),
+        };
+        DropZone.BorderBrush = new SolidColorBrush(Color.FromRgb(0x3A, 0x3A, 0x46));
+        PreviewTitle.Foreground = new SolidColorBrush(Color.FromRgb(0xF3, 0xF4, 0xFA));
+        PreviewPanel.Resources["AccentBrush"] = new SolidColorBrush(accent);
+        if (!string.IsNullOrWhiteSpace(_settings.BackgroundImagePath) && File.Exists(_settings.BackgroundImagePath))
+        {
+            try
+            {
+                Background = new ImageBrush(new BitmapImage(new Uri(_settings.BackgroundImagePath))) { Opacity = 0.16, Stretch = Stretch.UniformToFill };
+                return;
+            }
+            catch { }
+        }
+        Background = new SolidColorBrush(_settings.Theme switch
+        {
+            "Aurora" => Color.FromRgb(0x0C, 0x18, 0x1B),
+            "Ember" => Color.FromRgb(0x1D, 0x12, 0x12),
+            _ => Color.FromRgb(0x10, 0x10, 0x14),
+        });
     }
 
     private void CancelRow_Click(object sender, RoutedEventArgs e)
